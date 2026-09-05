@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스마트 맞춤형 모둠 짜기</title>
+  <!-- 엑셀 파일 읽기 라이브러리 (SheetJS) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --subtext: #64748b;
+      --border: #e2e8f0;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --male: #2563eb;
+      --female: #db2777;
+      --neutral: #475569;
+      --leader: #d97706;
+      --danger: #ef4444;
+      --success: #10b981;
+      --excel: #16a34a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 20px; line-height: 1.5; }
+    .container { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    header { text-align: center; margin-bottom: 10px; }
+    header h1 { font-size: 1.8rem; color: var(--primary); font-weight: 800; margin-bottom: 6px; }
+    header p { color: var(--subtext); font-size: 0.95rem; }
+
+    .card { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+
+    textarea { width: 100%; height: 80px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; resize: vertical; outline: none; }
+    textarea:focus { border-color: var(--primary); }
+
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .btn { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; background: #e2e8f0; color: #334155; }
+    .btn:hover { opacity: 0.9; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-excel { background: var(--excel); color: white; }
+    .btn-sm { padding: 4px 8px; font-size: 0.8rem; }
+
+    /* Student List Tags */
+    .student-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; max-height: 180px; overflow-y: auto; padding-right: 4px; }
+    .student-tag { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f8fafc; border: 1px solid var(--border); border-radius: 20px; font-size: 0.85rem; }
+    .student-tag .gender-btn { cursor: pointer; border: none; background: transparent; font-weight: bold; }
+    .student-tag .leader-btn { cursor: pointer; border: none; background: transparent; opacity: 0.3; }
+    .student-tag .leader-btn.active { opacity: 1; }
+
+    .male { color: var(--male); }
+    .female { color: var(--female); }
+    .neutral { color: var(--neutral); }
+
+    /* Settings Form */
+    .setting-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 10px; }
+    .setting-item label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--subtext); }
+    .setting-item input[type="number"], .setting-item select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
+
+    /* Rule Settings */
+    .rule-builder { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; background: #f8fafc; padding: 10px; border-radius: 8px; }
+    .rule-builder select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); }
+    .rule-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .rule-tag { background: #e0e7ff; color: #3730a3; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
+    .rule-tag .del-btn { cursor: pointer; color: var(--danger); font-weight: bold; border: none; background: none; }
+
+    /* Action Box */
+    .action-box { text-align: center; margin: 10px 0; }
+    .btn-main { padding: 14px 32px; font-size: 1.1rem; border-radius: 30px; background: var(--primary); color: white; border: none; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
+
+    /* Results */
+    .result-status { text-align: center; margin-bottom: 12px; font-weight: 600; font-size: 0.95rem; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; margin-left: 6px; }
+    .status-success { background: #d1fae5; color: #065f46; }
+    .status-warn { background: #fef3c7; color: #92400e; }
+
+    .teams-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+    .team-card { background: #ffffff; border: 2px solid var(--border); border-radius: 10px; padding: 14px; min-height: 150px; display: flex; flex-direction: column; }
+    .team-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg); padding-bottom: 8px; margin-bottom: 10px; }
+    .team-title { font-weight: 700; color: var(--text); outline: none; }
+    .team-info { font-size: 0.8rem; color: var(--subtext); }
+
+    .member-list { flex: 1; display: flex; flex-direction: column; gap: 6px; min-height: 50px; }
+    .member-card { background: #f8fafc; border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; cursor: grab; user-select: none; }
+    .member-card:active { cursor: grabbing; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>🏫 스마트 맞춤형 모둠 짜기</h1>
+    <p>엑셀 파일 불러오기 지원 · 성별 균등 · 모둠장 분배 · 규칙 자동 적용</p>
+  </header>
+
+  <!-- 1. 학생 명단 입력 및 엑셀 업로드 -->
+  <div class="card">
+    <div class="card-title">
+      <span>1. 학생 명단 관리 (<span id="student-count">0</span>명)</span>
+      <div style="display:flex; gap:6px;">
+        <label class="btn btn-sm btn-excel" style="cursor:pointer;">
+          📊 엑셀 불러오기
+          <input type="file" id="excel-input" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
+        </label>
+        <button class="btn btn-sm" onclick="loadSampleData()">샘플 채우기</button>
+        <button class="btn btn-sm" onclick="clearData()">초기화</button>
+      </div>
+    </div>
+    <textarea id="raw-input" placeholder="엑셀 파일을 올리거나 직접 입력하세요 (예: 홍길동(남), 김영희(여))" oninput="parseStudents()"></textarea>
+    
+    <div class="student-list" id="student-tag-list"></div>
+  </div>
+
+  <!-- 2. 모둠 및 특수 규칙 설정 -->
+  <div class="card">
+    <div class="card-title">2. 조건 설정</div>
+    
+    <div class="setting-grid">
+      <div class="setting-item">
+        <label>기준 선택</label>
+        <select id="type-select">
+          <option value="groups">모둠 수 기준 (예: 4개 모둠)</option>
+          <option value="per_group">모둠당 인원 기준 (예: 4명씩)</option>
+        </select>
+      </div>
+      <div class="setting-item">
+        <label id="number-label">모둠 수</label>
+        <input type="number" id="target-number" value="4" min="1">
+      </div>
+      <div class="setting-item">
+        <label>성별 균등 배치</label>
+        <select id="gender-balance">
+          <option value="true">⚖️ 남/여 골고루 나누기</option>
+          <option value="false">무작위 섞기</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 규칙 지정 (같이 짜기 / 떨어뜨리기) -->
+    <div style="margin-top: 16px;">
+      <label style="font-size: 0.85rem; font-weight: 600; color: var(--subtext); display: block; margin-bottom: 6px;">
+        🤝 특수 관계 설정 (같이 배치하기 / 떨어뜨리기)
+      </label>
+      <div class="rule-builder">
+        <select id="rule-student1"></select>
+        <span>학생과</span>
+        <select id="rule-student2"></select>
+        <span>학생을</span>
+        <select id="rule-type">
+          <option value="together">🤝 같은 모둠에 배치</option>
+          <option value="separate">🚫 서로 다른 모둠에 배치</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="addRule()">규칙 추가</button>
+      </div>
+      <div class="rule-tags" id="rule-tag-list"></div>
+    </div>
+  </div>
+
+  <!-- 3. 버튼 -->
+  <div class="action-box">
+    <button class="btn-main" onclick="generateTeams()">🎲 모둠 편성하기</button>
+  </div>
+
+  <!-- 4. 편성 결과 -->
+  <div class="card" id="result-card" style="display: none;">
+    <div class="card-title">
+      <span>🎉 편성 결과</span>
+      <button class="btn btn-sm" onclick="copyResultText()">📋 결과 텍스트 복사</button>
+    </div>
+    <div class="result-status" id="result-status"></div>
+    <div class="teams-grid" id="teams-grid"></div>
+  </div>
+</div>
+
+<script>
+  let students = [];
+  let rules = [];
+
+  // 엑셀 파일 처리 (1열: 번호, 2열: 이름, 3열: 성별)
+  function handleExcelUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        let parsedList = [];
+        rows.forEach(row => {
+          if (!row || row.length < 2) return;
+          
+          let col2 = String(row[1] || '').trim(); // 이름
+          let col3 = String(row[2] || '').trim(); // 성별
+          
+          // 제목 행 건너뛰기
+          if (col2 === '이름' || col2 === '성명' || col2 === '') return;
+
+          let genderTag = '';
+          if (col3.includes('남') || col3.toLowerCase().includes('m')) genderTag = '(남)';
+          else if (col3.includes('여') || col3.toLowerCase().includes('f')) genderTag = '(여)';
+
+          parsedList.push(`${col2}${genderTag}`);
+        });
+
+        if (parsedList.length === 0) {
+          alert('엑셀 파일에서 학생 정보를 찾지 못했습니다. B열에 이름이 있는지 확인해주세요.');
+          return;
+        }
+
+        document.getElementById('raw-input').value = parsedList.join(', ');
+        parseStudents();
+        alert(`🎉 ${parsedList.length}명의 학생 명단을 불러왔습니다!`);
+      } catch (err) {
+        alert('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = ''; // 초기화
+  }
+
+  // 샘플 데이터
+  function loadSampleData() {
+    const sample = "김철수(남), 이영희(여), 박민수(남), 정수진(여), 최동현(남), 강지민(여), 윤서준(남), 임서연(여), 한지호(남), 오지은(여), 송태양(남), 신유진(여), 안현우(남), 황보경(여), 전진우(남), 유하은(여)";
+    document.getElementById('raw-input').value = sample;
+    parseStudents();
+    
+    if(students.length >= 4) {
+      students[0].isLeader = true;
+      students[1].isLeader = true;
+      students[2].isLeader = true;
+      students[3].isLeader = true;
+    }
+    renderStudentTags();
+  }
+
+  function clearData() {
+    document.getElementById('raw-input').value = '';
+    students = [];
+    rules = [];
+    renderStudentTags();
+    renderRules();
+    document.getElementById('result-card').style.display = 'none';
+  }
+
+  function parseStudents() {
+    const raw = document.getElementById('raw-input').value;
+    const tokens = raw.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
+    const existingMap = new Map(students.map(s => [s.name, s]));
+    
+    students = tokens.map(token => {
+      let name = token;
+      let gender = 'neutral';
+      
+      const genderMatch = token.match(/^(.+?)\((남|여)\)$/);
+      if (genderMatch) {
+        name = genderMatch[1].trim();
+        gender = genderMatch[2] === '남' ? 'male' : 'female';
+      }
+
+      const prev = existingMap.get(name);
+      return {
+        name: name,
+        gender: prev ? prev.gender : gender,
+        isLeader: prev ? prev.isLeader : false
+      };
+    });
+
+    renderStudentTags();
+    updateRuleDropdowns();
+  }
+
+  function renderStudentTags() {
+    document.getElementById('student-count').innerText = students.length;
+    const container = document.getElementById('student-tag-list');
+    container.innerHTML = '';
+
+    students.forEach((s, idx) => {
+      const tag = document.createElement('div');
+      tag.className = 'student-tag';
+      
+      const genderSymbol = s.gender === 'male' ? '♂ 남' : (s.gender === 'female' ? '♀ 여' : '❓');
+      const genderClass = s.gender;
+
+      tag.innerHTML = `
+        <button class="leader-btn ${s.isLeader ? 'active' : ''}" title="모둠장 지정" onclick="toggleLeader(${idx})">👑</button>
+        <span>${s.name}</span>
+        <button class="gender-btn ${genderClass}" onclick="toggleGender(${idx})">${genderSymbol}</button>
+      `;
+      container.appendChild(tag);
+    });
+  }
+
+  function toggleGender(idx) {
+    const next = { neutral: 'male', male: 'female', female: 'neutral' };
+    students[idx].gender = next[students[idx].gender];
+    renderStudentTags();
+  }
+
+  function toggleLeader(idx) {
+    students[idx].isLeader = !students[idx].isLeader;
+    renderStudentTags();
+  }
+
+  function updateRuleDropdowns() {
+    const s1 = document.getElementById('rule-student1');
+    const s2 = document.getElementById('rule-student2');
+    s1.innerHTML = ''; s2.innerHTML = '';
+
+    students.forEach(s => {
+      s1.add(new Option(s.name, s.name));
+      s2.add(new Option(s.name, s.name));
+    });
+  }
+
+  function addRule() {
+    const name1 = document.getElementById('rule-student1').value;
+    const name2 = document.getElementById('rule-student2').value;
+    const type = document.getElementById('rule-type').value;
+
+    if (!name1 || !name2 || name1 === name2) {
+      alert('서로 다른 두 학생을 선택해 주세요.');
+      return;
+    }
+
+    rules.push({ id: Date.now(), s1: name1, s2: name2, type: type });
+    renderRules();
+  }
+
+  function deleteRule(id) {
+    rules = rules.filter(r => r.id !== id);
+    renderRules();
+  }
+
+  function renderRules() {
+    const container = document.getElementById('rule-tag-list');
+    container.innerHTML = '';
+
+    rules.forEach(r => {
+      const tag = document.createElement('div');
+      tag.className = 'rule-tag';
+      const typeText = r.type === 'together' ? '🤝 같이' : '🚫 따로';
+      tag.innerHTML = `
+        <span>${r.s1} & ${r.s2} (${typeText})</span>
+        <button class="del-btn" onclick="deleteRule(${r.id})">✕</button>
+      `;
+      container.appendChild(tag);
+    });
+  }
+
+  function generateTeams() {
+    if (students.length === 0) {
+      alert('학생 명단을 먼저 입력해 주세요.');
+      return;
+    }
+
+    const type = document.getElementById('type-select').value;
+    const targetNum = parseInt(document.getElementById('target-number').value) || 1;
+    let groupCount = type === 'groups' ? targetNum : Math.ceil(students.length / targetNum);
+    groupCount = Math.max(1, Math.min(groupCount, students.length));
+
+    let bestResult = null;
+    let minViolations = 999;
+
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const teams = Array.from({ length: groupCount }, () => []);
+      let pool = [...students];
+      
+      const leaders = pool.filter(s => s.isLeader);
+      pool = pool.filter(s => !s.isLeader);
+      shuffleArray(leaders);
+      leaders.forEach((l, idx) => teams[idx % groupCount].push(l));
+
+      const isGenderBalance = document.getElementById('gender-balance').value === 'true';
+      if (isGenderBalance) {
+        const males = shuffleArray(pool.filter(s => s.gender === 'male'));
+        const females = shuffleArray(pool.filter(s => s.gender === 'female'));
+        const neutrals = shuffleArray(pool.filter(s => s.gender === 'neutral'));
+
+        [...males, ...females, ...neutrals].forEach(s => {
+          let minTeam = teams.reduce((min, t) => t.length < min.length ? t : min, teams[0]);
+          minTeam.push(s);
+        });
+      } else {
+        shuffleArray(pool);
+        pool.forEach(s => {
+          let minTeam = teams.reduce((min, t) => t.length < min.length ? t : min, teams[0]);
+          minTeam.push(s);
+        });
+      }
+
+      const violations = countViolations(teams);
+      if (violations < minViolations) {
+        minViolations = violations;
+        bestResult = teams;
+        if (violations === 0) break;
+      }
+    }
+
+    renderTeamsResult(bestResult, minViolations);
+  }
+
+  function countViolations(teams) {
+    let count = 0;
+    teams.forEach(t => {
+      const lCount = t.filter(s => s.isLeader).length;
+      if (lCount > 1) count += (lCount - 1);
+    });
+
+    rules.forEach(r => {
+      const team1 = teams.findIndex(t => t.some(s => s.name === r.s1));
+      const team2 = teams.findIndex(t => t.some(s => s.name === r.s2));
+
+      if (r.type === 'together' && team1 !== team2) count++;
+      if (r.type === 'separate' && team1 === team2 && team1 !== -1) count++;
+    });
+
+    return count;
+  }
+
+  function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function renderTeamsResult(teams, violations) {
+    const card = document.getElementById('result-card');
+    const status = document.getElementById('result-status');
+    const grid = document.getElementById('teams-grid');
+    
+    card.style.display = 'block';
+    grid.innerHTML = '';
+
+    if (violations === 0) {
+      status.innerHTML = `<span class="status-badge status-success">✅ 모든 조건과 규칙을 완벽하게 만족합니다!</span>`;
+    } else {
+      status.innerHTML = `<span class="status-badge status-warn">⚠️ 일부 규칙이 겹쳐 최선의 조합으로 작성되었습니다 (${violations}개 조건 미충족)</span>`;
+    }
+
+    teams.forEach((team, idx) => {
+      const teamEl = document.createElement('div');
+      teamEl.className = 'team-card';
+
+      const maleC = team.filter(s => s.gender === 'male').length;
+      const femaleC = team.filter(s => s.gender === 'female').length;
+
+      teamEl.innerHTML = `
+        <div class="team-header">
+          <span class="team-title" contenteditable="true">${idx + 1}모둠</span>
+          <span class="team-info">${team.length}명 (남${maleC}·여${femaleC})</span>
+        </div>
+        <div class="member-list">
+          ${team.map(s => `
+            <div class="member-card">
+              <span>
+                ${s.isLeader ? '👑 ' : ''}<b>${s.name}</b>
+              </span>
+              <span class="${s.gender}" style="font-size:0.8rem;">
+                ${s.gender === 'male' ? '남' : s.gender === 'female' ? '여' : ''}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      grid.appendChild(teamEl);
+    });
+  }
+
+  function copyResultText() {
+    const teams = document.querySelectorAll('.team-card');
+    let text = "📋 [모둠 편성 결과]\n\n";
+
+    teams.forEach(t => {
+      const title = t.querySelector('.team-title').innerText;
+      const members = Array.from(t.querySelectorAll('.member-card span:first-child')).map(m => m.innerText.trim());
+      text += `${title}: ${members.join(', ')}\n`;
+    });
+
+    navigator.clipboard.writeText(text).then(() => alert('결과가 클립보드에 복사되었습니다!'));
+  }
+</script>
+
+</body>
+</html>
